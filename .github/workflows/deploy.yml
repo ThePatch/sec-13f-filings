@@ -1,0 +1,45 @@
+# .github/workflows/deploy.yml
+#
+# On push to main (after PR merge), SSH to Hetzner and roll the API.
+# Required secrets:
+#   HETZNER_HOST  — IP or hostname of the Hetzner box
+#   HETZNER_USER  — typically "deploy"
+#   SSH_KEY       — private key (matching authorized_keys on the box)
+#
+# The server is expected to have:
+#   - /opt/13f/api  — git clone of this repo (deploy user owns)
+#   - rbenv + ruby 3.0.2
+#   - systemd units 13f-api, 13f-worker, 13f-clock (from
+#     ThePatch/13fproject deploy/systemd/)
+
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/13f/api
+            git fetch origin main
+            git reset --hard origin/main
+            ~/.rbenv/shims/bundle install --deployment --without development test
+            RAILS_ENV=production ~/.rbenv/shims/bundle exec rake db:migrate
+            sudo systemctl restart 13f-api 13f-worker 13f-clock
+            sleep 2
+            curl -fsS http://127.0.0.1:3000/api/healthz | head -c 200
+            echo "Deployed at $(date -Iseconds)"

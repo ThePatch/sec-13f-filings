@@ -13,8 +13,12 @@ module Api
     end
 
     def session_id
-      # Use cookie-based session.id (Rails 7 provides this) or generate a stable one.
-      session.id&.to_s || cookies[:anon_id] ||= SecureRandom.uuid
+      # Rails 6 doesn't expose session.id reliably across requests, so we mint
+      # a stable cookie-scoped id on first request and reuse it.
+      sid = session.id&.to_s
+      return sid if sid.present?
+      cookies.signed[:anon_id] ||= { value: SecureRandom.uuid, expires: 1.year.from_now, httponly: true, same_site: :lax }
+      cookies.signed[:anon_id]
     end
 
     def paginate(scope)
