@@ -20,6 +20,11 @@ gem 'rack-timeout', '~> 0.6'
 gem 'scenic', '~> 1.5'
 gem 'webpacker', '~> 5.0'
 
+# F13 Explorer JSON API additions
+gem 'rack-cors'         # CORS for the SPA frontend
+gem 'alba'              # fast JSON serializer
+gem 'rack-attack'       # rate limiting for /api endpoints
+
 group :development, :test do
   gem 'byebug', platforms: [:mri, :mingw, :x64_mingw]
   gem 'dotenv-rails'
