@@ -7,19 +7,9 @@
 # Idempotency: skips if an AiInsight already exists for the (filer_cik, period)
 # tuple, where "period" is encoded as report_year/report_quarter in payload.
 #
-# depends on AI::Router from ai-agent
-#   Assumed interface (see report-back):
-#     AI::Router.new.dispatch(
-#       provider: 'claude',
-#       model: '...',
-#       messages: [...],
-#       system_prompt: '...'
-#     ) => { body: String, tokens_in:, tokens_out:, ... }
-#
-#   The snippets/ folder currently shows `Ai::Router.new(session_id:).chat(...)`.
-#   This job uses the no-arg-constructor `dispatch` shape per the Insights
-#   Agent brief; the AI Agent should either add `dispatch` as an alias or
-#   confirm the right call shape so we can adjust.
+# Bypasses Ai::Router (which requires a per-session AiProviderConfig row)
+# and calls Ai::AnthropicClient directly with ENV['ANTHROPIC_API_KEY'] —
+# this is a cron-driven job with no session.
 class GenerateInsightsJob < ApplicationJob
   queue_as :default
 
@@ -74,10 +64,16 @@ class GenerateInsightsJob < ApplicationJob
     prompt    = render_prompt(filing, prev)
     sys_block = system_context(filing, prev, diff)
 
-    result = AI::Router.new.dispatch(
-      provider: "claude",
-      model: model_name,
+    api_key = ENV["ANTHROPIC_API_KEY"]
+    if api_key.blank?
+      Rails.logger.warn("[GenerateInsightsJob] ANTHROPIC_API_KEY not set; skipping #{filing.id}")
+      return
+    end
+
+    client = Ai::AnthropicClient.new(api_key: api_key)
+    result = client.chat(
       messages: [{ role: "user", content: prompt }],
+      model: model_name,
       system_prompt: sys_block,
     )
 
