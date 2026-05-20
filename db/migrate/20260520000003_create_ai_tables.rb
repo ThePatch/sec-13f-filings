@@ -1,5 +1,5 @@
 # db/migrate/20260520000003_create_ai_tables.rb
-class CreateAiTables < ActiveRecord::Migration[7.1]
+class CreateAiTables < ActiveRecord::Migration[6.1]
   def change
     # Provider config — per-session API key + default model.
     # When real auth lands, swap session_id for user_id.

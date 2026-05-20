@@ -1,5 +1,5 @@
 # db/migrate/20260520000002_create_watchlists.rb
-class CreateWatchlists < ActiveRecord::Migration[7.1]
+class CreateWatchlists < ActiveRecord::Migration[6.1]
   def change
     create_table :watchlists do |t|
       t.string :session_id, null: false      # cookie session id; switch to user_id when auth lands

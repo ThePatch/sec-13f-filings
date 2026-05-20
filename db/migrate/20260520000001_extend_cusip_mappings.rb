@@ -1,5 +1,5 @@
 # db/migrate/20260520000001_extend_cusip_mappings.rb
-class ExtendCusipMappings < ActiveRecord::Migration[7.1]
+class ExtendCusipMappings < ActiveRecord::Migration[6.1]
   def change
     change_table :cusip_symbol_mappings do |t|
       t.string  :source,     null: false, default: 'manual'   # seed-yf | sec-ticker | openfigi | manual | unresolved
