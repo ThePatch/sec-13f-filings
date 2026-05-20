@@ -1,6 +1,16 @@
 # app/controllers/api/filers_controller.rb
 module Api
   class FilersController < BaseController
+    # GET /api/filers/by_ciks?ciks=CIK1,CIK2,...  — minimal {cik, name} batch lookup
+    # for the WatchlistScreen avatar row. Capped at 200 to keep the response small.
+    def by_ciks
+      ciks = Array(params[:ciks].to_s.split(',')).map(&:strip).reject(&:blank?).first(200)
+      return render(json: []) if ciks.empty?
+
+      rows = ThirteenFFiler.where(cik: ciks).pluck(:cik, :name)
+      render json: rows.map { |cik, name| { cik: cik, name: name } }
+    end
+
     def index
       scope = ThirteenFFiler.all
 

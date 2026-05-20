@@ -21,26 +21,37 @@ module Api
     def holders
       year     = params[:year]&.to_i     || latest_year
       quarter  = params[:quarter]&.to_i  || latest_quarter(year)
+      page     = (params[:page]     || 1).to_i.clamp(1, 1000)
+      per_page = (params[:per_page] || 50).to_i.clamp(1, 200)
 
       filings = ThirteenF.where(report_year: year, report_quarter: quarter)
-      holders = AggregateHolding.joins("INNER JOIN thirteen_fs ON aggregate_holdings.thirteen_f_id = thirteen_fs.id")
-                                .where(cusip: params[:cusip], thirteen_f_id: filings.select(:id))
-                                .select('aggregate_holdings.*, thirteen_fs.cik AS filer_cik, thirteen_fs.name AS filer_name, thirteen_fs.holdings_value_calculated AS filer_aum')
-                                .order(value: :desc)
-                                .limit(500)
+      base = AggregateHolding.joins("INNER JOIN thirteen_fs ON aggregate_holdings.thirteen_f_id = thirteen_fs.id")
+                             .where(cusip: params[:cusip], thirteen_f_id: filings.select(:id))
+      total = base.count
+      holders = base.select('aggregate_holdings.*, thirteen_fs.cik AS filer_cik, thirteen_fs.name AS filer_name, thirteen_fs.holdings_value_calculated AS filer_aum')
+                    .order(value: :desc)
+                    .offset((page - 1) * per_page)
+                    .limit(per_page)
 
-      render json: holders.map { |h|
-        {
-          cik: h.filer_cik,
-          name: h.filer_name,
-          shares: h.shares_or_principal_amount.to_s,
-          value: h.value.to_s,
-          pct_of_filer: h.filer_aum.to_f.zero? ? 0 : (h.value.to_f / h.filer_aum.to_f * 100).round(3),
-          # pct_of_company + delta_shares + delta_pct_qoq computed in a second query (omitted for brevity)
-          pct_of_company: nil,
-          delta_shares: '0',
-          delta_pct_qoq: 0.0,
-        }
+      render json: {
+        data: holders.map { |h|
+          {
+            cik: h.filer_cik,
+            name: h.filer_name,
+            shares: h.shares_or_principal_amount.to_s,
+            value: h.value.to_s,
+            pct_of_filer: h.filer_aum.to_f.zero? ? 0 : (h.value.to_f / h.filer_aum.to_f * 100).round(3),
+            # pct_of_company + delta_shares + delta_pct_qoq computed in a second query (omitted for brevity)
+            pct_of_company: nil,
+            delta_shares: '0',
+            delta_pct_qoq: 0.0,
+          }
+        },
+        total: total,
+        page: page,
+        per_page: per_page,
+        year: year,
+        quarter: quarter,
       }
     end
 

@@ -54,11 +54,20 @@ module Ai
 
       buf = ''
       output_tokens = 0
+      input_tokens = nil
       t0 = Time.now
 
       HTTParty.post(
         "#{@base}#{self.class::PATH}",
-        body: { model: model, messages: msgs, max_tokens: max_tokens, stream: true }.to_json,
+        body: {
+          model: model,
+          messages: msgs,
+          max_tokens: max_tokens,
+          stream: true,
+          # Asks OpenAI-compatible servers to emit a final {usage:{prompt_tokens,completion_tokens}}
+          # frame. Honored by OpenAI, Groq, NIM; ignored by Ollama and some OpenRouter routes.
+          stream_options: { include_usage: true },
+        }.to_json,
         headers: @headers,
         stream_body: true,
         timeout: 120,
@@ -83,13 +92,14 @@ module Ai
             yield(delta: delta)
           end
           if (usage = data['usage'])
+            input_tokens  = usage['prompt_tokens']     || input_tokens
             output_tokens = usage['completion_tokens'] || output_tokens
           end
         end
       end
 
       latency_ms = ((Time.now - t0) * 1000).to_i
-      yield(done: true, tokens_in: nil, tokens_out: output_tokens, latency_ms: latency_ms)
+      yield(done: true, tokens_in: input_tokens, tokens_out: output_tokens, latency_ms: latency_ms)
     end
 
     private

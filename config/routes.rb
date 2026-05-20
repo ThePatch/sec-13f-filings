@@ -28,6 +28,9 @@ Rails.application.routes.draw do
     resources :filers, only: [:index, :show], param: :cik, constraints: { cik: /\d{10}/ } do
       resources :filings, only: :index
       get :aum_history, on: :member
+      collection do
+        get :by_ciks
+      end
     end
 
     resources :filings, only: :show do
