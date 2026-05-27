@@ -20,4 +20,55 @@ Rails.application.routes.draw do
   get '/data/13f/:external_id/compare/:other_external_id', to: 'data#compare_holdings_data', as: :thirteen_f_comparison_data
   get '/data/cusip/:cusip/:year/:quarter', to: 'data#all_cusip_holders_data', as: :all_cusip_holders_data
   get '/data/manager/:cik/cusip/:cusip', to: 'data#manager_cusip_history_data', as: :manager_cusip_history_data
+
+  # ─── New JSON API ──────────────────────────────────────────────
+  namespace :api, defaults: { format: :json } do
+    get 'healthz', to: 'healthz#show'
+
+    resources :filers, only: [:index, :show], param: :cik, constraints: { cik: /\d{10}/ } do
+      resources :filings, only: :index
+      get :aum_history, on: :member
+      collection do
+        get :by_ciks
+      end
+    end
+
+    resources :filings, only: :show do
+      get :holdings,            on: :member
+      get :aggregate_holdings,  on: :member
+      get 'compare/:other_id',  to: 'filings#compare', on: :member, as: :compare
+    end
+
+    resources :cusips, only: :show, param: :cusip, constraints: { cusip: /[A-Z0-9]{9}/ } do
+      get :holders, on: :member
+      get :history, on: :member
+    end
+
+    resources :mappings, param: :cusip, only: [:index, :show, :create, :update, :destroy] do
+      collection do
+        get  :sources
+        post 'sync/sec',       to: 'mappings#sync_sec'
+        post 'sync/openfigi',  to: 'mappings#sync_openfigi'
+        post 'sync/yfinance',  to: 'mappings#sync_yfinance'
+        post :import           # multipart CSV
+      end
+    end
+
+    resources :watchlists
+
+    namespace :ai do
+      get  :providers,             to: 'providers#index'
+      patch 'providers/:id',       to: 'providers#update',  as: :provider
+      post 'providers/:id/test',   to: 'providers#test',    as: :test_provider
+      patch 'providers/:id/default_model', to: 'providers#default_model'
+
+      post :chat,        to: 'chat#create'
+      post 'chat/stream', to: 'chat#stream'
+      post :lab,         to: 'lab#run'
+      get  :insights,    to: 'insights#index'
+      resources :conversations
+    end
+
+    get :recent_filings, to: 'recent_filings#index'
+  end
 end

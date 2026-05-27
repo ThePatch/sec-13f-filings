@@ -30,3 +30,9 @@ every(1.day, "make sure materialized views are up to date", at: "23:00") do
   CompanyCusipLookup.delay(priority: 10).refresh!
   CusipQuarterlyFilingsCount.delay(priority: 100).refresh!
 end
+
+every(1.hour, "generate insights") do
+  # GenerateInsightsJob is an ActiveJob backed by delayed_job in this fork,
+  # so we enqueue via perform_later (mirrors how SecTickerSyncJob would run).
+  GenerateInsightsJob.set(priority: 75).perform_later
+end
