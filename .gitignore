@@ -35,3 +35,9 @@
 /yarn-error.log
 yarn-debug.log*
 .yarn-integrity
+
+# Python (ColBERT sidecar)
+services/colbert/.venv
+services/colbert/__pycache__/
+services/colbert/**/__pycache__/
+*.pyc

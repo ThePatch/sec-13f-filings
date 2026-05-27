@@ -1,0 +1,33 @@
+# /etc/systemd/system/13f-colbert.service
+[Unit]
+Description=13F ColBERT sidecar (FastAPI)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/13f/services/colbert
+EnvironmentFile=/opt/13f/.env
+Environment=PATH=/opt/13f/services/colbert/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/13f/services/colbert/.venv/bin/uvicorn services.colbert.main:app \
+  --host 127.0.0.1 --port 7400 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+
+# Resource limits — model needs ~500MB; cap to prevent OOM
+MemoryMax=2G
+CPUQuota=200%
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/13f/services/colbert /opt/13f/.cache
+
+[Install]
+WantedBy=multi-user.target

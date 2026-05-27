@@ -1,0 +1,14 @@
+# Install with:
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+#
+# The CPU-only torch wheel (~200 MB) is what we want on the Hetzner box — no GPU.
+# Listing torch here too so a plain `pip install -r requirements.txt` still works,
+# at the cost of pulling the larger default wheel.
+
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+torch==2.5.1
+transformers==4.46.0
+numpy==2.1.3
