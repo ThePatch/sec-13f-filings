@@ -15,6 +15,7 @@ gem 'httparty', '~> 0.18'
 gem 'kaminari', '~> 1.2'
 gem 'nokogiri', '~> 1.11'
 gem 'pg', '~> 1.1'
+gem 'pgvector', '~> 0.2.0'  # ActiveRecord ↔ vector(N) column type for v2 retrieval (0.3+ needs Ruby 3.1)
 gem 'puma', '~> 5.0'
 gem 'rack-timeout', '~> 0.6'
 gem 'scenic', '~> 1.5'

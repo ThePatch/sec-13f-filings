@@ -17,6 +17,7 @@ class CreateChunks < ActiveRecord::Migration[6.1]
         dense_vec      vector(96),
 
         colbert_blob   BYTEA NOT NULL,
+        colbert_scales BYTEA NOT NULL,
         colbert_dim    INT NOT NULL DEFAULT 96,
         colbert_tokens INT NOT NULL,
 

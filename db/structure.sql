@@ -1,4 +1,4 @@
-\restrict WcTXMijTbeZJQ1yyEu1e9BEspX4cvRRHNCzxJkZv9DxFb0bRiFGcKFhvnMh9AuI
+\restrict kinv8O1WMQuZgZct7bSgpEWdhoxLQkmqVD6HVjbGUK28EvMFN5DZSi6emdA1Hzv
 
 -- Dumped from database version 16.14 (Debian 16.14-1.pgdg12+1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -383,7 +383,8 @@ CREATE TABLE public.chunks (
     colbert_dim integer DEFAULT 96 NOT NULL,
     colbert_tokens integer NOT NULL,
     text_tsv tsvector GENERATED ALWAYS AS (to_tsvector('english'::regconfig, text)) STORED,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    colbert_scales bytea NOT NULL
 );
 
 
@@ -1666,7 +1667,7 @@ ALTER TABLE ONLY public.triples
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WcTXMijTbeZJQ1yyEu1e9BEspX4cvRRHNCzxJkZv9DxFb0bRiFGcKFhvnMh9AuI
+\unrestrict kinv8O1WMQuZgZct7bSgpEWdhoxLQkmqVD6HVjbGUK28EvMFN5DZSi6emdA1Hzv
 
 SET search_path TO "$user", public;
 
@@ -1692,6 +1693,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260527000007'),
 ('20260527000008'),
 ('20260527000009'),
-('20260527000010');
+('20260527000010'),
+('20260527000011');
 
 

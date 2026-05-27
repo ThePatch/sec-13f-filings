@@ -1,7 +1,7 @@
-# Chunks carry pgvector (`dense_vec vector(96)`) and bytea columns that the
-# default ActiveRecord adapter does not natively serialize. For v2 reads/writes
-# go through raw SQL (or the pgvector gem once T-510 wires it in). Treat this
-# model as a read-mostly handle to the row plus the assocs.
+# The dense_vec / embedding columns are pgvector vector(N). The `pgvector` gem
+# (loaded via Bundler) registers the column adapter so reads/writes round-trip
+# as Ruby Arrays. KNN queries use raw `<=>` SQL with parameterized vectors
+# (see Retrieval::HybridRetriever#pgvector_first_pass).
 class Chunk < ApplicationRecord
   belongs_to :document
 end

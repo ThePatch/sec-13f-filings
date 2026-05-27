@@ -28,12 +28,13 @@ namespace :colbert do
 
       timings[:insert_chunk] = Benchmark.realtime do
         conn = ActiveRecord::Base.connection
-        dense_literal = "[#{embed_result[:dense_vec].map { |f| f.to_f.to_s }.join(',')}]"
-        blob_hex = Base64.decode64(embed_result[:colbert_blob_b64]).unpack1('H*')
+        dense_literal = Pgvector.encode(embed_result[:dense_vec])
+        blob_hex   = Base64.decode64(embed_result[:colbert_blob_b64]).unpack1('H*')
+        scales_hex = Base64.decode64(embed_result[:colbert_scales_b64]).unpack1('H*')
         sql = <<~SQL
           INSERT INTO chunks (
             document_id, ordinal, text, token_count, start_char, end_char,
-            dense_vec, colbert_blob, colbert_dim, colbert_tokens
+            dense_vec, colbert_blob, colbert_scales, colbert_dim, colbert_tokens
           ) VALUES (
             #{conn.quote(doc_id)},
             0,
@@ -43,6 +44,7 @@ namespace :colbert do
             25,
             #{conn.quote(dense_literal)}::vector,
             decode(#{conn.quote(blob_hex)}, 'hex'),
+            decode(#{conn.quote(scales_hex)}, 'hex'),
             #{embed_result[:colbert_dim].to_i},
             #{embed_result[:token_count].to_i}
           )
