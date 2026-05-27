@@ -44,6 +44,10 @@ Rails.application.routes.draw do
       get :history, on: :member
     end
 
+    # v2 citation resolution (T-515)
+    resources :chunks, only: :show
+    resources :atoms,  only: :show
+
     resources :mappings, param: :cusip, only: [:index, :show, :create, :update, :destroy] do
       collection do
         get  :sources

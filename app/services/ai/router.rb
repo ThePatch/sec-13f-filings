@@ -1,9 +1,15 @@
 # app/services/ai/router.rb
 #
-# Dispatches chat requests to the right provider client. Each client
-# implements #chat and #stream_chat with the same signature. The router
-# also handles context resolution (filer/filing/cusip/period refs) by
-# loading the actual records and folding them into the system prompt.
+# Dispatches chat requests to the right provider client and assembles the
+# system prompt from two sources:
+#
+#   1. Retrieval::HybridRetriever — semantic atoms + chunks pulled from the
+#      v2 compression layer (ColBERT + MSAM). Returns confidence-tiered context.
+#   2. ContextBuilder (legacy) — structured filer/filing/cusip/period blocks
+#      lifted directly from 13F data. Useful when the user navigates to a
+#      specific entity even if no atoms exist for it yet.
+#
+# Both feed a single system prompt template (app/prompts/system_chat.md).
 
 module Ai
   class Router
@@ -16,27 +22,72 @@ module Ai
       'ollama'     => 'Ai::OllamaClient',
     }.freeze
 
+    SYSTEM_TEMPLATE_PATH = Rails.root.join('app/prompts/system_chat.md')
+
     def initialize(session_id:)
       @session_id = session_id
     end
 
     def chat(provider:, model:, messages:, context: [], **opts)
       client = client_for(provider)
-      system_prompt = ContextBuilder.new.build(context)
-      result = client.chat(messages: messages, model: model, system_prompt: system_prompt, **opts)
+      assembled = build_system_prompt(messages: messages, context_refs: context)
+      result = client.chat(messages: messages, model: model, system_prompt: assembled[:prompt], **opts)
       touch_config(provider)
-      message_record(provider: provider, model: model, result: result, context: context)
+      message_record(
+        provider: provider, model: model, result: result, context: context,
+        retrieval: assembled[:retrieval],
+      )
     end
 
     def stream_chat(provider:, model:, messages:, context: [], **opts, &block)
       client = client_for(provider)
-      system_prompt = ContextBuilder.new.build(context)
-      result = client.stream_chat(messages: messages, model: model, system_prompt: system_prompt, **opts, &block)
+      assembled = build_system_prompt(messages: messages, context_refs: context)
+      result = client.stream_chat(messages: messages, model: model, system_prompt: assembled[:prompt], **opts, &block)
       touch_config(provider)
       result
     end
 
     private
+
+    def build_system_prompt(messages:, context_refs:)
+      query = (messages.last && (messages.last[:content] || messages.last['content'])).to_s
+
+      retrieval = Retrieval::HybridRetriever.new(
+        query: query,
+        context_refs: context_refs,
+        session_id: @session_id,
+      ).retrieve
+
+      atoms_block   = format_atoms(retrieval.atoms)
+      chunks_block  = format_chunks(retrieval.chunks)
+      legacy_block  = ContextBuilder.new.build_blocks_only(context_refs)
+
+      prompt = SYSTEM_TEMPLATE_PATH.read
+                 .sub('{{ATOMS}}',          atoms_block)
+                 .sub('{{CHUNKS}}',         chunks_block)
+                 .sub('{{LEGACY_CONTEXT}}', legacy_block)
+
+      { prompt: prompt, retrieval: retrieval }
+    end
+
+    def format_atoms(atoms)
+      return '' if atoms.blank?
+      body = atoms.map do |a|
+        "[a:#{a.id}] (#{a.profile}, stab=#{a.stability.to_f.round(2)})\n#{a.content}"
+      end.join("\n\n")
+      "ATOMS (compressed memory; cite as `[a:<id>]`):\n```\n#{body}\n```"
+    end
+
+    def format_chunks(chunk_ids)
+      return '' if chunk_ids.blank?
+      rows = Chunk.where(id: chunk_ids).pluck(:id, :text, :document_id)
+      # Preserve the order from retrieval
+      by_id = rows.index_by(&:first)
+      body  = chunk_ids.filter_map { |id| by_id[id] }.map do |id, text, _doc_id|
+        "[c:#{id}]\n#{text}"
+      end.join("\n\n")
+      "CHUNKS (raw source spans; cite as `[c:<id>]`):\n```\n#{body}\n```"
+    end
 
     def client_for(provider)
       klass_name = PROVIDERS[provider.to_s] || raise(ArgumentError, "unknown provider: #{provider}")
@@ -53,7 +104,7 @@ module Ai
       AiProviderConfig.where(session_id: @session_id, provider: provider.to_s).update_all(last_used_at: Time.current)
     end
 
-    def message_record(provider:, model:, result:, context:)
+    def message_record(provider:, model:, result:, context:, retrieval:)
       {
         id: SecureRandom.uuid,
         role: 'assistant',
@@ -63,13 +114,43 @@ module Ai
         tokens_out: result[:tokens_out],
         cost_usd: result[:cost_usd],
         latency_ms: result[:latency_ms],
-        citations: context.map { |c| { ref_type: c[:ref_type], ref_id: c[:ref_id], label: c[:ref_type].to_s } },
+        confidence_tier: retrieval&.tier,
+        citations: build_citations(result[:body], context, retrieval),
         created_at: Time.current.iso8601,
       }
     end
+
+    # Parse `[a:N]` and `[c:N]` markers from the LLM body. The returned array is
+    # what the frontend renders as pills (T-605 wires the UI).
+    def build_citations(body, context_refs, retrieval)
+      body = body.to_s
+      atom_ids  = body.scan(/\[a:(\d+)\]/).flatten.map(&:to_i).uniq
+      chunk_ids = body.scan(/\[c:(\d+)\]/).flatten.map(&:to_i).uniq
+
+      atom_rows  = atom_ids.any?  ? Atom.where(id: atom_ids).pluck(:id, :content).to_h : {}
+      chunk_rows = chunk_ids.any? ? Chunk.where(id: chunk_ids).pluck(:id, :text).to_h  : {}
+
+      citations = []
+      atom_ids.each  { |id| citations << { type: 'atom',  id: id, label: (atom_rows[id]  || '').slice(0, 80) } }
+      chunk_ids.each { |id| citations << { type: 'chunk', id: id, label: (chunk_rows[id] || '').slice(0, 80) } }
+
+      # Preserve v1 navigational refs so the frontend can still highlight them
+      Array(context_refs).each do |c|
+        citations << {
+          type: 'ref',
+          ref_type: c[:ref_type] || c['ref_type'],
+          ref_id:   c[:ref_id]   || c['ref_id'],
+          label:    (c[:ref_type] || c['ref_type']).to_s,
+        }
+      end
+
+      citations
+    end
   end
 
-  # Resolves "context refs" into a system prompt with actual filing/holding data.
+  # Resolves v1-style "context refs" (filer/filing/cusip/period) into structured
+  # context blocks. v2's HybridRetriever handles semantic retrieval; this still
+  # provides the structured 13F data that has no atom yet.
   class ContextBuilder
     SYSTEM_BASE = <<~SYS.freeze
       You are an AI assistant analyzing SEC Form 13F institutional holdings filings.
@@ -81,9 +162,23 @@ module Ai
     SYS
 
     def build(context_refs)
-      return SYSTEM_BASE if context_refs.blank?
+      blocks = blocks_for(context_refs)
+      return SYSTEM_BASE if blocks.empty?
+      "#{SYSTEM_BASE}\n\nCONTEXT BLOCKS:\n#{blocks.join("\n\n")}"
+    end
 
-      blocks = Array(context_refs).map do |ref|
+    # Returns just the structured blocks (no system base) so the v2 router can
+    # fold them into its own template.
+    def build_blocks_only(context_refs)
+      blocks = blocks_for(context_refs)
+      return '' if blocks.empty?
+      "LEGACY CONTEXT BLOCKS:\n#{blocks.join("\n\n")}"
+    end
+
+    private
+
+    def blocks_for(context_refs)
+      Array(context_refs).map do |ref|
         type = (ref[:ref_type] || ref['ref_type']).to_s
         id   = ref[:ref_id]   || ref['ref_id']
         case type
@@ -93,12 +188,7 @@ module Ai
         when 'period'  then build_period_block(id)
         end
       end.compact
-
-      return SYSTEM_BASE if blocks.empty?
-      "#{SYSTEM_BASE}\n\nCONTEXT BLOCKS:\n#{blocks.join("\n\n")}"
     end
-
-    private
 
     def build_filer_block(cik)
       filer = ThirteenFFiler.find_by(cik: cik)
@@ -130,7 +220,6 @@ module Ai
       "PERIOD #{period}"
     end
 
-    # Exclude raw XML / large blobs if columns happen to exist.
     def heavy_columns(klass)
       (%i[primary_doc_xml info_table_xml] & klass.column_names.map(&:to_sym))
     end

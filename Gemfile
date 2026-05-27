@@ -42,6 +42,7 @@ end
 
 group :test do
   gem 'capybara', '>= 3.26'
+  gem 'mocha', '~> 2.1'
   gem 'selenium-webdriver'
   gem 'webdrivers'
   gem 'webmock', '~> 3.18'
