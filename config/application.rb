@@ -18,5 +18,10 @@ module Sec13fFilings
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # v2 migrations introduce pgvector, generated columns, HNSW indexes and
+    # Postgres enums — none of which round-trip cleanly through schema.rb.
+    # Switch to structure.sql so the schema dump captures everything.
+    config.active_record.schema_format = :sql
   end
 end
