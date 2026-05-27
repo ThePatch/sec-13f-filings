@@ -15,7 +15,7 @@ class CreateDocuments < ActiveRecord::Migration[6.1]
         raw_url       TEXT,
         language      VARCHAR(8) NOT NULL DEFAULT 'en',
         word_count    INT,
-        hash          TEXT NOT NULL,
+        content_hash  TEXT NOT NULL,
         metadata      JSONB NOT NULL DEFAULT '{}'::jsonb,
         ingested_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         processed_at  TIMESTAMPTZ,
@@ -25,7 +25,7 @@ class CreateDocuments < ActiveRecord::Migration[6.1]
 
       CREATE INDEX documents_company_published ON documents (company_id, published_at DESC);
       CREATE INDEX documents_doc_type_published ON documents (doc_type, published_at DESC);
-      CREATE INDEX documents_hash ON documents (hash);
+      CREATE INDEX documents_content_hash ON documents (content_hash);
       CREATE INDEX documents_unprocessed ON documents (ingested_at) WHERE processed_at IS NULL;
 
       COMMENT ON TABLE documents IS 'Raw source documents. One per news article, earnings call, SEC filing. Deduped by (source, source_ref) and by hash.';

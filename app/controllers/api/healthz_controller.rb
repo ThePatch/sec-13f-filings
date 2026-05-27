@@ -7,8 +7,18 @@ module Api
         ok: true,
         db: ActiveRecord::Base.connection.active?,
         edgar_last_sync: last_filing&.iso8601,
+        colbert: colbert_health,
         build: ENV['BUILD_SHA'] || 'dev',
       }
+    end
+
+    private
+
+    def colbert_health
+      h = ColbertClient.health
+      { ok: true, model: h['model'], dim: h['dim'], device: h['device'] }
+    rescue ColbertClient::Error => e
+      { ok: false, error: e.message }
     end
   end
 end

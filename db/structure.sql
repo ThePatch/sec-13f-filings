@@ -1,4 +1,4 @@
-\restrict zHf02TRv88GfhHEAnODwjO40PpW3DTtC1Q6nyOGa0ESSonWer3EvwYgF3larsT1
+\restrict WcTXMijTbeZJQ1yyEu1e9BEspX4cvRRHNCzxJkZv9DxFb0bRiFGcKFhvnMh9AuI
 
 -- Dumped from database version 16.14 (Debian 16.14-1.pgdg12+1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -666,7 +666,7 @@ CREATE TABLE public.documents (
     raw_url text,
     language character varying(8) DEFAULT 'en'::character varying NOT NULL,
     word_count integer,
-    hash text NOT NULL,
+    content_hash text NOT NULL,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     ingested_at timestamp with time zone DEFAULT now() NOT NULL,
     processed_at timestamp with time zone
@@ -1325,17 +1325,17 @@ CREATE INDEX documents_company_published ON public.documents USING btree (compan
 
 
 --
+-- Name: documents_content_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX documents_content_hash ON public.documents USING btree (content_hash);
+
+
+--
 -- Name: documents_doc_type_published; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX documents_doc_type_published ON public.documents USING btree (doc_type, published_at DESC);
-
-
---
--- Name: documents_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX documents_hash ON public.documents USING btree (hash);
 
 
 --
@@ -1666,7 +1666,7 @@ ALTER TABLE ONLY public.triples
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zHf02TRv88GfhHEAnODwjO40PpW3DTtC1Q6nyOGa0ESSonWer3EvwYgF3larsT1
+\unrestrict WcTXMijTbeZJQ1yyEu1e9BEspX4cvRRHNCzxJkZv9DxFb0bRiFGcKFhvnMh9AuI
 
 SET search_path TO "$user", public;
 
@@ -1691,6 +1691,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260527000006'),
 ('20260527000007'),
 ('20260527000008'),
-('20260527000009');
+('20260527000009'),
+('20260527000010');
 
 
