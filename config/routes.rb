@@ -71,6 +71,10 @@ Rails.application.routes.draw do
       post :lab,         to: 'lab#run'
       get  :insights,    to: 'insights#index'
       resources :conversations
+
+      # v2 feedback (T-525)
+      post 'messages/:id/feedback', to: 'feedback#message_feedback'
+      post 'atoms/:id/correct',     to: 'feedback#atom_correction'
     end
 
     get :recent_filings, to: 'recent_filings#index'
