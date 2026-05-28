@@ -1,0 +1,34 @@
+# Boilerplate patterns stripped by Ingest::Cleaner. Pattern is a Ruby regex
+# string; replacement is what (if anything) we replace it with — usually empty.
+# Patterns are applied in order; the first match wins per region.
+patterns:
+  - name: forward_looking_statement
+    pattern: '(?im)forward[- ]looking statements?.*?(?=\n\n|\Z)'
+    replace: ''
+  - name: safe_harbor
+    pattern: '(?im)safe[- ]harbor (statement|provisions).*?(?=\n\n|\Z)'
+    replace: ''
+  - name: copyright_footer
+    pattern: '(?im)(?:©|copyright)\s*\d{4}.*?(?=\n\n|\Z)'
+    replace: ''
+  - name: subscribe_cta
+    pattern: '(?im)subscribe to our newsletter.*'
+    replace: ''
+  - name: reuters_disclaimer
+    pattern: '(?im)this article was syndicated by reuters\..*'
+    replace: ''
+  - name: nasdaq_disclaimer
+    pattern: '(?im)the views and opinions expressed.*?nasdaq[, ]?inc.*'
+    replace: ''
+  - name: sec_uploaded_marker
+    pattern: '(?m)^uploaded\s+by\s+filer\s*$'
+    replace: ''
+  - name: cookie_banner
+    pattern: '(?im)we use cookies.*?(?=\n\n|\Z)'
+    replace: ''
+  - name: collapse_whitespace
+    pattern: "[ \\t]+"
+    replace: ' '
+  - name: collapse_blank_lines
+    pattern: '\n{3,}'
+    replace: "\n\n"

@@ -14,7 +14,8 @@ class ProcessDocumentJob < ApplicationJob
     return if doc.raw_text.blank?
 
     instrument(doc) do
-      chunks_data = chunker_for(doc.doc_type).new(doc.raw_text).chunks
+      cleaned = Ingest::Cleaner.clean(doc.raw_text)
+      chunks_data = chunker_for(doc.doc_type).new(cleaned).chunks
       Rails.logger.info("[process_document] doc=#{doc.id} chunks=#{chunks_data.size}")
 
       chunks_data.each_with_index do |chunk_data, ordinal|
@@ -47,10 +48,13 @@ class ProcessDocumentJob < ApplicationJob
   end
 
   def chunker_for(doc_type)
-    # Phase 10 (T-536) introduces per-doc-type chunkers — earnings (speaker-
-    # aware), news (paragraph), SEC (item boundary), letter (paragraph).
-    # Until then, every doc_type falls through to the paragraph fallback.
-    Chunkers::Fallback
+    case doc_type.to_s
+    when "earnings_call"                  then Chunkers::Earnings
+    when "news"                           then Chunkers::News
+    when "sec_8k", "sec_10q", "sec_other" then Chunkers::Sec
+    when "letter", "ir_press"             then Chunkers::Letter
+    else                                       Chunkers::Fallback
+    end
   end
 
   def persist_chunk(doc, c, ordinal)

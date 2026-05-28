@@ -36,3 +36,28 @@ every(1.hour, "generate insights") do
   # so we enqueue via perform_later (mirrors how SecTickerSyncJob would run).
   GenerateInsightsJob.set(priority: 75).perform_later
 end
+
+# ─── v2 ingestion + atom maintenance (Phase 10) ───────────────────────
+every(5.minutes, "poll sec edgar") do
+  Ingest::PollSecEdgarJob.set(priority: 80).perform_later
+end
+
+every(15.minutes, "poll gdelt news") do
+  Ingest::PollGdeltNewsJob.set(priority: 60).perform_later
+end
+
+every(1.hour, "poll finnhub news") do
+  Ingest::PollFinnhubNewsJob.set(priority: 60).perform_later
+end
+
+every(1.day, "poll alphavantage earnings", at: "06:00") do
+  Ingest::PollAlphavantageEarningsJob.set(priority: 70).perform_later
+end
+
+every(6.hours, "purge newsapi raw text") do
+  Ingest::PurgeNewsApiRawTextJob.set(priority: 90).perform_later
+end
+
+every(1.hour, "atom decay") do
+  Atoms::DecayJob.set(priority: 85).perform_later
+end

@@ -48,6 +48,9 @@ Rails.application.routes.draw do
     resources :chunks, only: :show
     resources :atoms,  only: :show
 
+    # v2 manual document upload (T-540)
+    resources :documents, only: :create
+
     resources :mappings, param: :cusip, only: [:index, :show, :create, :update, :destroy] do
       collection do
         get  :sources

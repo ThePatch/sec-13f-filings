@@ -1,4 +1,4 @@
-\restrict kinv8O1WMQuZgZct7bSgpEWdhoxLQkmqVD6HVjbGUK28EvMFN5DZSi6emdA1Hzv
+\restrict v6ZhLmZZuT61UAcSCKyXuEgbGlX8dpE6yCsvV5uYZuxUfr8MzIJD2Om2G8mqiAp
 
 -- Dumped from database version 16.14 (Debian 16.14-1.pgdg12+1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -362,6 +362,43 @@ CREATE SEQUENCE public.atoms_id_seq
 --
 
 ALTER SEQUENCE public.atoms_id_seq OWNED BY public.atoms.id;
+
+
+--
+-- Name: backfill_statuses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.backfill_statuses (
+    id bigint NOT NULL,
+    company_id bigint NOT NULL,
+    state character varying DEFAULT 'pending'::character varying NOT NULL,
+    started_at timestamp without time zone,
+    finished_at timestamp without time zone,
+    document_count integer DEFAULT 0 NOT NULL,
+    breakdown jsonb DEFAULT '{}'::jsonb NOT NULL,
+    last_error text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: backfill_statuses_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.backfill_statuses_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: backfill_statuses_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.backfill_statuses_id_seq OWNED BY public.backfill_statuses.id;
 
 
 --
@@ -923,6 +960,13 @@ ALTER TABLE ONLY public.atoms ALTER COLUMN id SET DEFAULT nextval('public.atoms_
 
 
 --
+-- Name: backfill_statuses id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backfill_statuses ALTER COLUMN id SET DEFAULT nextval('public.backfill_statuses_id_seq'::regclass);
+
+
+--
 -- Name: chunks id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1055,6 +1099,14 @@ ALTER TABLE ONLY public.atoms
 
 ALTER TABLE ONLY public.atoms
     ADD CONSTRAINT atoms_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: backfill_statuses backfill_statuses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backfill_statuses
+    ADD CONSTRAINT backfill_statuses_pkey PRIMARY KEY (id);
 
 
 --
@@ -1396,6 +1448,13 @@ CREATE UNIQUE INDEX index_ai_provider_configs_on_session_id_and_provider ON publ
 
 
 --
+-- Name: index_backfill_statuses_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_backfill_statuses_on_company_id ON public.backfill_statuses USING btree (company_id);
+
+
+--
 -- Name: index_company_cusip_lookups_on_count_and_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1656,6 +1715,14 @@ ALTER TABLE ONLY public.documents
 
 
 --
+-- Name: backfill_statuses fk_rails_0840d68e55; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backfill_statuses
+    ADD CONSTRAINT fk_rails_0840d68e55 FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
 -- Name: triples triples_source_atom_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1667,7 +1734,7 @@ ALTER TABLE ONLY public.triples
 -- PostgreSQL database dump complete
 --
 
-\unrestrict kinv8O1WMQuZgZct7bSgpEWdhoxLQkmqVD6HVjbGUK28EvMFN5DZSi6emdA1Hzv
+\unrestrict v6ZhLmZZuT61UAcSCKyXuEgbGlX8dpE6yCsvV5uYZuxUfr8MzIJD2Om2G8mqiAp
 
 SET search_path TO "$user", public;
 
@@ -1694,6 +1761,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20260527000008'),
 ('20260527000009'),
 ('20260527000010'),
-('20260527000011');
+('20260527000011'),
+('20260528000001');
 
 
