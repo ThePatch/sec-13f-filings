@@ -55,6 +55,42 @@ module Api
       }
     end
 
+    # GET /api/cusips/:cusip/documents?doc_type=news|earnings_call|sec_8k|...
+    # Used by the v2 Company page News and Earnings tabs (T-601/T-602).
+    def documents
+      company = Company.find_by(cusip: params[:cusip])
+      return render(json: { data: [], total: 0 }, status: :ok) unless company
+
+      page     = (params[:page]     || 1).to_i.clamp(1, 1000)
+      per_page = (params[:per_page] || 20).to_i.clamp(1, 100)
+
+      scope = Document.where(company_id: company.id)
+      if (doc_type = params[:doc_type]).present?
+        scope = scope.where(doc_type: doc_type)
+      end
+      total = scope.count
+      rows  = scope.order(published_at: :desc)
+                   .offset((page - 1) * per_page)
+                   .limit(per_page)
+                   .pluck(:id, :doc_type, :source, :title, :published_at, :raw_url, :word_count)
+
+      render json: {
+        data: rows.map { |id, doc_type, source, title, published_at, raw_url, word_count|
+          {
+            id:           id,
+            doc_type:     doc_type,
+            source:       source,
+            title:        title,
+            published_at: published_at&.iso8601,
+            raw_url:      raw_url,
+            word_count:   word_count,
+            atom_count:   Atom.where(document_id: id).count,
+          }
+        },
+        total: total, page: page, per_page: per_page,
+      }
+    end
+
     def history
       counts = CusipQuarterlyFilingsCount.where(cusip: params[:cusip]).order(:report_year, :report_quarter)
       render json: counts.map { |c|

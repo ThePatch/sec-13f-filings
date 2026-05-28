@@ -40,8 +40,9 @@ Rails.application.routes.draw do
     end
 
     resources :cusips, only: :show, param: :cusip, constraints: { cusip: /[A-Z0-9]{9}/ } do
-      get :holders, on: :member
-      get :history, on: :member
+      get :holders,   on: :member
+      get :history,   on: :member
+      get :documents, on: :member
     end
 
     # v2 citation resolution (T-515)
